@@ -1,16 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Coordinates, Route, TollPlaza, RoadHazard, VehicleConfig } from '../types';
-import { haversineDistanceKm } from '../services/routingService';
+import { Coordinates, Route, VehicleConfig } from '../types';
 
 export interface LiveRoadEvent {
   id: string;
-  type: 'toll' | 'pothole' | 'rough_road' | 'waterlogging' | 'speed_breaker' | 'parking' | 'hazard';
+  type: 'toll' | 'pothole' | 'rough_road' | 'waterlogging' | 'speed_breaker' | 'hazard' | 'shock';
   title: string;
   message: string;
   distanceAheadMeters: number;
   costImpact?: number;
   icon: string;
-  accentColor: string;
+  accentColor: 'blue' | 'emerald' | 'rose' | 'amber';
 }
 
 export interface DynamicRerouteOffer {
@@ -41,8 +40,8 @@ export function useLiveJourney(
   onJourneyCompleted: (completedStats: any) => void
 ) {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.5); // 1x, 2x, 4x
-  const [progress, setProgress] = useState<number>(0); // 0.0 to 1.0
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.5);
+  const [progress, setProgress] = useState<number>(0);
   const [currentCoords, setCurrentCoords] = useState<Coordinates | null>(null);
   const [bearing, setBearing] = useState<number>(0);
   const [currentSpeedKmh, setCurrentSpeedKmh] = useState<number>(45);
@@ -57,15 +56,65 @@ export function useLiveJourney(
   const [dynamicReroute, setDynamicReroute] = useState<DynamicRerouteOffer | null>(null);
   const [isOffRoute, setIsOffRoute] = useState<boolean>(false);
   const [isRecalculating, setIsRecalculating] = useState<boolean>(false);
+  const [roadShockCount, setRoadShockCount] = useState<number>(0);
 
-  // References for requestAnimationFrame loop
+  // References
   const animFrameRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number | null>(null);
   const progressRef = useRef<number>(0);
   const triggeredEventsRef = useRef<Set<string>>(new Set());
   const rerouteTriggeredRef = useRef<boolean>(false);
+  const lastShockTimeRef = useRef<number>(0);
 
-  // Initialize or reset when route changes
+  // Safe device motion listener for phone accelerometer
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    const handleDeviceMotion = (event: DeviceMotionEvent) => {
+      const acc = event.accelerationIncludingGravity || event.acceleration;
+      if (!acc) return;
+
+      const z = acc.z || 0;
+      const x = acc.x || 0;
+      const y = acc.y || 0;
+      const totalG = Math.sqrt(x * x + y * y + z * z);
+
+      // Detect vertical shock or sharp displacement (> 14 m/s² total vector or sharp delta)
+      const now = Date.now();
+      if (totalG > 14.5 && now - lastShockTimeRef.current > 3500) {
+        lastShockTimeRef.current = now;
+        setRoadShockCount(prev => prev + 1);
+
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          navigator.vibrate([100, 50, 100]);
+        }
+
+        setActiveAlert({
+          id: `shock-${now}`,
+          type: 'shock',
+          title: 'Road Shock Detected',
+          message: `Vertical acceleration spike (+${(totalG / 9.8).toFixed(1)}G) recorded by phone sensor.`,
+          distanceAheadMeters: 0,
+          icon: '📉',
+          accentColor: 'amber'
+        });
+
+        setTimeout(() => setActiveAlert(null), 4000);
+      }
+    };
+
+    if (typeof window !== 'undefined' && 'ondevicemotion' in window) {
+      window.addEventListener('devicemotion', handleDeviceMotion, { passive: true });
+    }
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('devicemotion', handleDeviceMotion);
+      }
+    };
+  }, [isPlaying]);
+
+  // Reset when active route changes
   useEffect(() => {
     if (activeRoute && activeRoute.coordinates.length > 0) {
       setCurrentCoords(activeRoute.coordinates[0]);
@@ -82,10 +131,11 @@ export function useLiveJourney(
       setDynamicReroute(null);
       setIsOffRoute(false);
       setIsRecalculating(false);
+      setRoadShockCount(0);
     }
   }, [activeRoute?.id]);
 
-  // Main high-precision animation loop
+  // Main animation loop
   useEffect(() => {
     if (!isPlaying || !activeRoute || activeRoute.coordinates.length < 2) {
       if (animFrameRef.current) {
@@ -98,15 +148,13 @@ export function useLiveJourney(
 
     const coords = activeRoute.coordinates;
     const totalPoints = coords.length;
-    // Base duration for journey simulation: ~40 seconds at 1x speed
-    const baseJourneyDurationMs = 38000;
+    const baseJourneyDurationMs = 36000;
 
     const animate = (timestamp: number) => {
       if (!lastTimeRef.current) lastTimeRef.current = timestamp;
       const deltaTime = timestamp - lastTimeRef.current;
       lastTimeRef.current = timestamp;
 
-      // Increment progress
       const progressDelta = (deltaTime / baseJourneyDurationMs) * playbackSpeed;
       let nextProgress = progressRef.current + progressDelta;
 
@@ -123,7 +171,8 @@ export function useLiveJourney(
           tollPaid: activeRoute.tollCost,
           fuelUsedL: activeRoute.fuelLiters,
           roadQualityScore: activeRoute.roadQualityScore,
-          hazardsEncountered: activeRoute.hazardCount
+          hazardsEncountered: activeRoute.hazardCount,
+          roadShocksRecorded: roadShockCount
         });
         return;
       }
@@ -131,7 +180,6 @@ export function useLiveJourney(
       progressRef.current = nextProgress;
       setProgress(nextProgress);
 
-      // Interpolate along coordinates array
       const rawIndex = nextProgress * (totalPoints - 1);
       const lowerIndex = Math.floor(rawIndex);
       const upperIndex = Math.min(totalPoints - 1, lowerIndex + 1);
@@ -142,49 +190,44 @@ export function useLiveJourney(
 
       const lat = p1[0] + (p2[0] - p1[0]) * factor;
       const lng = p1[1] + (p2[1] - p1[1]) * factor;
-      const interpolatedPos: Coordinates = [lat, lng];
+      setCurrentCoords([lat, lng]);
 
-      setCurrentCoords(interpolatedPos);
-
-      // Calculate bearing angle
       if (lowerIndex !== upperIndex) {
         const nextBearing = calculateBearing(p1, p2);
         setBearing(nextBearing);
 
-        // Turn anticipation: if angle change is large, simulate slowing down
         const futureIndex = Math.min(totalPoints - 1, upperIndex + 2);
         const futureBearing = calculateBearing(p2, coords[futureIndex]);
         const angleDiff = Math.abs(futureBearing - nextBearing);
         if (angleDiff > 35) {
-          setCurrentSpeedKmh(Math.max(22, 50 - Math.min(28, angleDiff * 0.4)));
+          setCurrentSpeedKmh(Math.max(22, 48 - Math.min(26, angleDiff * 0.4)));
         } else {
-          setCurrentSpeedKmh(Math.min(68, 48 + Math.sin(nextProgress * Math.PI) * 15));
+          setCurrentSpeedKmh(Math.min(65, 46 + Math.sin(nextProgress * Math.PI) * 14));
         }
       }
 
-      // Check Road Events & Tolls along the path
       const currentDistKm = nextProgress * activeRoute.distanceKm;
 
-      // 1. Toll Plazas
+      // Toll plazas
       activeRoute.tollPlazas.forEach(toll => {
         const distDiffKm = toll.distanceAlongRouteKm - currentDistKm;
         const distDiffM = Math.round(distDiffKm * 1000);
 
-        if (distDiffM > 0 && distDiffM <= 900 && !triggeredEventsRef.current.has(`toll-warn-${toll.id}`)) {
+        if (distDiffM > 0 && distDiffM <= 800 && !triggeredEventsRef.current.has(`toll-warn-${toll.id}`)) {
           triggeredEventsRef.current.add(`toll-warn-${toll.id}`);
+          if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(60);
           setActiveAlert({
             id: `alert-toll-${toll.id}`,
             type: 'toll',
             title: 'Toll Plaza Ahead',
-            message: `${toll.name} in ${distDiffM}m. Fee: ₹${toll.fee[vehicle.type] || 0}`,
+            message: `${toll.name} in ${distDiffM}m. FASTag Fee: ₹${toll.fee[vehicle.type] || 0}`,
             distanceAheadMeters: distDiffM,
             costImpact: toll.fee[vehicle.type] || 0,
             icon: '🛣️',
-            accentColor: 'amber'
+            accentColor: 'blue'
           });
         }
 
-        // Crossed toll
         if (distDiffKm <= 0 && !triggeredEventsRef.current.has(`toll-crossed-${toll.id}`)) {
           triggeredEventsRef.current.add(`toll-crossed-${toll.id}`);
           const fee = toll.fee[vehicle.type] || 0;
@@ -194,54 +237,55 @@ export function useLiveJourney(
             id: `alert-toll-paid-${toll.id}`,
             type: 'toll',
             title: 'Toll Paid via FASTag',
-            message: `₹${fee} deducted automatically at ${toll.name}`,
+            message: `₹${fee} auto-debited at ${toll.name}`,
             distanceAheadMeters: 0,
             icon: '✅',
             accentColor: 'emerald'
           });
-          setTimeout(() => setActiveAlert(null), 4000);
+          setTimeout(() => setActiveAlert(null), 3500);
         }
       });
 
-      // 2. Road Hazards
+      // Hazards
       activeRoute.hazards.forEach(hazard => {
         const distDiffKm = hazard.distanceAlongRouteKm - currentDistKm;
         const distDiffM = Math.round(distDiffKm * 1000);
 
-        if (distDiffM > 0 && distDiffM <= 600 && !triggeredEventsRef.current.has(`hz-${hazard.id}`)) {
+        if (distDiffM > 0 && distDiffM <= 500 && !triggeredEventsRef.current.has(`hz-${hazard.id}`)) {
           triggeredEventsRef.current.add(`hz-${hazard.id}`);
+          if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(100);
           let icon = '⚠️';
           let title = 'Road Alert Ahead';
-          if (hazard.type === 'pothole') { icon = '🕳️'; title = 'Pothole Zone Ahead'; }
-          else if (hazard.type === 'waterlogging') { icon = '🌊'; title = 'Waterlogged Segment Ahead'; }
+          if (hazard.type === 'pothole') { icon = '🕳️'; title = 'Pothole Section Ahead'; }
+          else if (hazard.type === 'waterlogging') { icon = '🌊'; title = 'Waterlogged Zone Ahead'; }
           else if (hazard.type === 'rough_road') { icon = '🚧'; title = 'Rough Road Ahead'; }
-          else if (hazard.type === 'speed_breaker') { icon = '⚠️'; title = 'Speed Breakers Ahead'; }
 
           setActiveAlert({
             id: `alert-hz-${hazard.id}`,
             type: hazard.type as any,
             title,
-            message: `${hazard.description} in ${distDiffM}m. Verified by ${hazard.verifiedCount} drivers.`,
+            message: `${hazard.description} in ${distDiffM}m (${hazard.verifiedCount} drivers verified).`,
             distanceAheadMeters: distDiffM,
             icon,
             accentColor: 'rose'
           });
 
-          setTimeout(() => setActiveAlert(null), 5000);
+          setTimeout(() => setActiveAlert(null), 4500);
         }
       });
 
-      // 3. Dynamic Rerouting Event: Triggered at ~45% progress to demonstrate live Saarathi intelligence!
-      if (nextProgress >= 0.42 && nextProgress <= 0.65 && !rerouteTriggeredRef.current) {
+      // Dynamic Rerouting Demo
+      if (nextProgress >= 0.44 && nextProgress <= 0.60 && !rerouteTriggeredRef.current) {
         rerouteTriggeredRef.current = true;
         const alternative = allRoutes.find(r => r.id !== activeRoute.id);
         if (alternative) {
+          if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([80, 40, 80]);
           setDynamicReroute({
             newRouteId: alternative.id,
-            title: 'Traffic & Bottleneck Detected Ahead',
-            reason: 'Heavy congestion & pothole cluster observed on current stretch. Saarathi recommends immediate bypass.',
-            timeDiffMin: 3,
-            costDiffRs: Math.max(20, Math.round(activeRoute.totalCost - alternative.totalCost)),
+            title: 'Hazard Congestion Detected Ahead',
+            reason: 'Cluster of rough road segments detected ahead. Saarathi recommends switching.',
+            timeDiffMin: 2,
+            costDiffRs: Math.max(15, Math.round(activeRoute.totalCost - alternative.totalCost)),
             hazardDiff: 2
           });
         }
@@ -257,9 +301,8 @@ export function useLiveJourney(
         cancelAnimationFrame(animFrameRef.current);
       }
     };
-  }, [isPlaying, playbackSpeed, activeRoute, allRoutes, vehicle.type]);
+  }, [isPlaying, playbackSpeed, activeRoute, allRoutes, vehicle.type, roadShockCount]);
 
-  // Handle switching to alternative route dynamically
   const acceptReroute = useCallback(() => {
     if (!dynamicReroute) return;
     const targetRouteId = dynamicReroute.newRouteId;
@@ -267,13 +310,13 @@ export function useLiveJourney(
     setActiveAlert({
       id: 'reroute-success',
       type: 'rough_road',
-      title: 'Rerouted to Saarathi Smart Path',
-      message: 'Route smoothly updated. Saved toll and reduced pothole exposure.',
+      title: 'Rerouted to Saarathi Optimal Path',
+      message: 'Route updated. Bypassing road hazards and tolls.',
       distanceAheadMeters: 0,
       icon: '🔄',
       accentColor: 'emerald'
     });
-    setTimeout(() => setActiveAlert(null), 3500);
+    setTimeout(() => setActiveAlert(null), 3000);
     onSwitchRoute(targetRouteId);
   }, [dynamicReroute, onSwitchRoute]);
 
@@ -281,7 +324,6 @@ export function useLiveJourney(
     setDynamicReroute(null);
   }, []);
 
-  // Simulate off-route deviation & recalculation
   const simulateOffRoute = useCallback(() => {
     if (!isPlaying || !currentCoords) return;
     setIsOffRoute(true);
@@ -290,7 +332,7 @@ export function useLiveJourney(
       id: 'off-route-alert',
       type: 'hazard',
       title: 'Off-Route Detected',
-      message: 'Vehicle departed planned corridor. Saarathi AI recalculating optimal path...',
+      message: 'Vehicle deviated from plan. Saarathi recalculating best corridor...',
       distanceAheadMeters: 0,
       icon: '⚠️',
       accentColor: 'rose'
@@ -302,17 +344,32 @@ export function useLiveJourney(
       setActiveAlert({
         id: 'recalculated-alert',
         type: 'rough_road',
-        title: 'New Path Acquired',
-        message: 'Reconnected with optimal route. Continuing guided navigation.',
+        title: 'Route Recalculated',
+        message: 'Reconnected with optimal path. Continuing navigation.',
         distanceAheadMeters: 0,
         icon: '✅',
         accentColor: 'emerald'
       });
-      setTimeout(() => setActiveAlert(null), 3000);
-    }, 2200);
+      setTimeout(() => setActiveAlert(null), 2500);
+    }, 2000);
   }, [isPlaying, currentCoords]);
 
-  // Play / Pause / Reset handlers
+  // Simulate Road Shock manually (for desktop demo testing)
+  const simulateRoadShock = useCallback(() => {
+    setRoadShockCount(prev => prev + 1);
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(100);
+    setActiveAlert({
+      id: `shock-sim-${Date.now()}`,
+      type: 'shock',
+      title: 'Road Shock Detected',
+      message: 'Phone accelerometer recorded a sudden vertical bump (+1.6G).',
+      distanceAheadMeters: 0,
+      icon: '📉',
+      accentColor: 'amber'
+    });
+    setTimeout(() => setActiveAlert(null), 3500);
+  }, []);
+
   const togglePlay = useCallback(() => {
     setIsPlaying(prev => !prev);
   }, []);
@@ -327,6 +384,7 @@ export function useLiveJourney(
     setDynamicReroute(null);
     setIsOffRoute(false);
     setIsRecalculating(false);
+    setRoadShockCount(0);
     if (activeRoute && activeRoute.coordinates.length > 0) {
       setCurrentCoords(activeRoute.coordinates[0]);
       if (activeRoute.coordinates.length > 1) {
@@ -335,16 +393,6 @@ export function useLiveJourney(
     }
   }, [activeRoute]);
 
-  const jumpToProgress = useCallback((newProgress: number) => {
-    progressRef.current = Math.max(0, Math.min(1, newProgress));
-    setProgress(progressRef.current);
-    if (activeRoute && activeRoute.coordinates.length > 1) {
-      const idx = Math.floor(progressRef.current * (activeRoute.coordinates.length - 1));
-      setCurrentCoords(activeRoute.coordinates[idx]);
-    }
-  }, [activeRoute]);
-
-  // Derived stats
   const remainingDistanceKm = activeRoute
     ? Math.max(0, Number((activeRoute.distanceKm * (1 - progress)).toFixed(1)))
     : 0;
@@ -353,9 +401,8 @@ export function useLiveJourney(
     ? Math.max(1, Math.round(activeRoute.durationMin * (1 - progress)))
     : 0;
 
-  // Running total cost includes base fuel so far + paid tolls
   const currentRunningCost = activeRoute
-    ? Math.round((activeRoute.fuelCost * progress) + accumulatedCost + (progress > 0.9 ? activeRoute.parkingCost : 0))
+    ? Math.round((activeRoute.fuelCost * progress) + accumulatedCost)
     : 0;
 
   return {
@@ -373,13 +420,14 @@ export function useLiveJourney(
     dynamicReroute,
     isOffRoute,
     isRecalculating,
+    roadShockCount,
     remainingDistanceKm,
     remainingDurationMin,
     togglePlay,
     resetJourney,
-    jumpToProgress,
     acceptReroute,
     dismissReroute,
-    simulateOffRoute
+    simulateOffRoute,
+    simulateRoadShock
   };
 }

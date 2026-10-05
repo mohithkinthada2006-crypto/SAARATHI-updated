@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Coordinates } from '../../types';
-import { X, Search, MapPin, Building, Landmark, Compass } from 'lucide-react';
+import { X, Search, MapPin } from 'lucide-react';
 
 interface LocationSearchModalProps {
   isOpen: boolean;
@@ -72,7 +72,6 @@ export const LocationSearchModal: React.FC<LocationSearchModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Flatten and search
   const allPlaces = INDIAN_HUBS.flatMap(h => h.places.map(p => ({ ...p, city: h.city })));
   const filtered = query.trim()
     ? allPlaces.filter(p => 
@@ -83,65 +82,51 @@ export const LocationSearchModal: React.FC<LocationSearchModalProps> = ({
     : allPlaces;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl overflow-hidden p-5 text-slate-100 flex flex-col max-h-[85vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150">
+      <div className="relative w-full max-w-md bg-[#121824] border border-[#222E42] rounded-2xl shadow-2xl overflow-hidden p-4 text-slate-100 flex flex-col max-h-[80vh]">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div className="flex items-center justify-between pb-2.5 border-b border-[#222E42]">
           <div>
-            <h3 className="font-bold text-base text-white font-heading">
-              Select {isOrigin ? 'Starting Origin' : 'Destination Point'}
+            <h3 className="font-bold text-sm text-white font-heading">
+              Select {isOrigin ? 'Start Location' : 'Destination'}
             </h3>
-            <p className="text-xs text-slate-400">
-              Pick a prominent Indian transit hub or landmark corridor.
-            </p>
           </div>
           <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-white">
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Search input */}
+        {/* Search Bar */}
         <div className="mt-3 relative">
           <input
             type="text"
-            autoFocus
-            placeholder="Search landmark, street, tech park..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-400"
+            placeholder="Search by area, landmark or city..."
+            autoFocus
+            className="w-full bg-[#0B0F14] border border-[#222E42] rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
           />
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
         </div>
 
-        {/* Place list */}
-        <div className="mt-3 space-y-2 overflow-y-auto flex-1 pr-1">
-          {filtered.map((place, idx) => (
+        {/* Results List */}
+        <div className="mt-2.5 flex-1 overflow-y-auto space-y-1 pr-0.5">
+          {filtered.map((item, idx) => (
             <button
               key={idx}
               onClick={() => {
-                onSelectLocation(place.name, place.coords, isOrigin);
+                onSelectLocation(item.name, item.coords, isOrigin);
                 onClose();
               }}
-              className="w-full text-left p-2.5 rounded-xl bg-slate-950/60 hover:bg-slate-800 border border-slate-800/80 hover:border-amber-500/50 transition-all flex items-center justify-between group"
+              className="w-full text-left p-2.5 rounded-xl hover:bg-[#182232] border border-transparent hover:border-[#222E42] transition-colors flex items-start gap-2.5 group"
             >
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-slate-900 text-amber-400 group-hover:scale-110 transition-transform">
-                  <MapPin className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-white group-hover:text-amber-300">
-                    {place.name}
-                  </div>
-                  <div className="text-[10px] text-slate-400 flex items-center gap-1.5 mt-0.5">
-                    <span>{place.landmark}</span>
-                    <span>&bull;</span>
-                    <span className="text-amber-400/80 font-medium">{place.city}</span>
-                  </div>
-                </div>
+              <div className="p-1.5 rounded-lg bg-[#0B0F14] text-blue-400 shrink-0 mt-0.5">
+                <MapPin className="w-3.5 h-3.5" />
               </div>
-              <span className="text-xs text-slate-500 group-hover:text-amber-400 font-bold">
-                Select &rarr;
-              </span>
+              <div className="min-w-0">
+                <div className="font-bold text-xs text-white truncate">{item.name}</div>
+                <div className="text-[10px] text-slate-400 truncate">{item.landmark} &bull; <strong className="text-slate-300">{item.city}</strong></div>
+              </div>
             </button>
           ))}
         </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { VehicleConfig, VehicleType } from '../../types';
-import { Settings2, Save, X, RotateCcw, Zap, Fuel, Bike, Car, Compass } from 'lucide-react';
+import { Settings2, Save, X, RotateCcw, Zap } from 'lucide-react';
 import { DEFAULT_VEHICLE_CONFIGS } from '../../services/vehicleDefaults';
 
 interface VehicleSettingsModalProps {
@@ -45,20 +45,20 @@ export const VehicleSettingsModal: React.FC<VehicleSettingsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-xl bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl overflow-hidden p-6 text-slate-100">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150">
+      <div className="relative w-full max-w-lg bg-[#121824] border border-[#222E42] rounded-2xl shadow-2xl overflow-hidden p-5 text-slate-100">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400">
-              <Settings2 className="w-5 h-5" />
+        <div className="flex items-center justify-between pb-3 border-b border-[#222E42]">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-blue-600/20 text-blue-400">
+              <Settings2 className="w-4 h-4" />
             </div>
             <div>
               <h2 className="text-base font-bold text-white font-heading">
-                Vehicle Intelligence & Energy Specs
+                Vehicle Specs & Fuel/Battery Tuning
               </h2>
               <p className="text-xs text-slate-400">
-                Personalize fuel economy, fuel rates, battery capacity & tariffs.
+                Adjust mileage, fuel rates, battery capacity, and tariffs.
               </p>
             </div>
           </div>
@@ -68,14 +68,14 @@ export const VehicleSettingsModal: React.FC<VehicleSettingsModalProps> = ({
         </div>
 
         {/* Vehicle Tabs */}
-        <div className="flex items-center gap-1.5 mt-4 p-1 bg-slate-950 rounded-xl border border-slate-800">
+        <div className="flex items-center gap-1 mt-3 p-1 bg-[#0B0F14] rounded-xl border border-[#222E42]">
           {(['bike', 'car', 'ev', 'auto', 'bicycle'] as VehicleType[]).map((vt) => (
             <button
               key={vt}
               onClick={() => setCurrentTab(vt)}
-              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all text-center ${
+              className={`flex-1 py-1.5 px-1 rounded-lg text-xs font-bold transition-all text-center ${
                 currentTab === vt
-                  ? 'bg-amber-500 text-slate-950 shadow-md'
+                  ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -84,13 +84,13 @@ export const VehicleSettingsModal: React.FC<VehicleSettingsModalProps> = ({
           ))}
         </div>
 
-        {/* Active vehicle settings form */}
-        <div className="mt-4 space-y-4 text-xs">
+        {/* Form fields */}
+        <div className="mt-3.5 space-y-3 text-xs">
           {/* ICE Vehicles (Bike, Car, Auto) */}
           {(currentTab === 'bike' || currentTab === 'car' || currentTab === 'auto') && (
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1">
+                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
                   Average City Mileage ({currentTab === 'auto' ? 'km / kg CNG' : 'km / Liter'})
                 </label>
                 <input
@@ -98,97 +98,67 @@ export const VehicleSettingsModal: React.FC<VehicleSettingsModalProps> = ({
                   step="0.5"
                   value={current.mileageKmPerL}
                   onChange={(e) => updateCurrent({ mileageKmPerL: parseFloat(e.target.value) || 15 })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono focus:outline-none focus:border-amber-400"
+                  className="w-full bg-[#0B0F14] border border-[#222E42] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1">
-                    Fuel Type
-                  </label>
-                  <select
-                    value={current.fuelType}
-                    onChange={(e) => updateCurrent({ fuelType: e.target.value as any })}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-amber-400"
-                  >
-                    <option value="petrol">Petrol</option>
-                    <option value="diesel">Diesel</option>
-                    <option value="cng">CNG</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1">
-                    Fuel Price (₹ / {current.fuelType === 'cng' ? 'kg' : 'Liter'})
-                  </label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={current.fuelPricePerL}
-                    onChange={(e) => updateCurrent({ fuelPricePerL: parseFloat(e.target.value) || 100 })}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono focus:outline-none focus:border-amber-400"
-                  />
-                </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+                  Fuel Price (₹ / {currentTab === 'auto' ? 'kg CNG' : 'Litre'})
+                </label>
+                <input
+                  type="number"
+                  step="0.5"
+                  value={current.fuelPricePerL}
+                  onChange={(e) => updateCurrent({ fuelPricePerL: parseFloat(e.target.value) || 100 })}
+                  className="w-full bg-[#0B0F14] border border-[#222E42] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
+                />
               </div>
             </div>
           )}
 
-          {/* Electric Vehicle Settings */}
+          {/* EV Settings */}
           {currentTab === 'ev' && (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1">
-                    Battery Pack Size (kWh)
-                  </label>
-                  <input
-                    type="number"
-                    value={current.batteryCapacityKwh}
-                    onChange={(e) => updateCurrent({ batteryCapacityKwh: parseFloat(e.target.value) || 40 })}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono focus:outline-none focus:border-amber-400"
-                  />
+            <div className="space-y-2.5">
+              <div>
+                <div className="flex items-center justify-between text-[10px] font-bold uppercase text-slate-400 mb-1">
+                  <span>Current Battery Level</span>
+                  <span className="text-emerald-400 font-mono">{current.currentBatteryPercent}%</span>
                 </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1">
-                    Current Battery State (%)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="100"
-                    value={current.currentBatteryPercent}
-                    onChange={(e) => updateCurrent({ currentBatteryPercent: parseInt(e.target.value, 10) || 80 })}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-emerald-400 font-mono font-bold focus:outline-none focus:border-amber-400"
-                  />
-                </div>
+                <input
+                  type="range"
+                  min="5"
+                  max="100"
+                  value={current.currentBatteryPercent}
+                  onChange={(e) => updateCurrent({ currentBatteryPercent: parseInt(e.target.value, 10) })}
+                  className="w-full accent-emerald-500 cursor-pointer"
+                />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1">
+                  <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+                    Battery Capacity (kWh)
+                  </label>
+                  <input
+                    type="number"
+                    step="1"
+                    value={current.batteryCapacityKwh}
+                    onChange={(e) => updateCurrent({ batteryCapacityKwh: parseFloat(e.target.value) || 40 })}
+                    className="w-full bg-[#0B0F14] border border-[#222E42] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
                     Efficiency (km / kWh)
                   </label>
                   <input
                     type="number"
                     step="0.1"
                     value={current.efficiencyKmPerKwh}
-                    onChange={(e) => updateCurrent({ efficiencyKmPerKwh: parseFloat(e.target.value) || 7.0 })}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono focus:outline-none focus:border-amber-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1">
-                    Electricity Tariff (₹ / kWh)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={current.costPerKwh}
-                    onChange={(e) => updateCurrent({ costPerKwh: parseFloat(e.target.value) || 9.0 })}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono focus:outline-none focus:border-amber-400"
+                    onChange={(e) => updateCurrent({ efficiencyKmPerKwh: parseFloat(e.target.value) || 7.2 })}
+                    className="w-full bg-[#0B0F14] border border-[#222E42] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
                   />
                 </div>
               </div>
@@ -197,50 +167,37 @@ export const VehicleSettingsModal: React.FC<VehicleSettingsModalProps> = ({
 
           {/* Bicycle Settings */}
           {currentTab === 'bicycle' && (
-            <div className="space-y-3">
-              <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-400 mb-1">
-                  Maximum Comfortable Range (km)
-                </label>
-                <input
-                  type="number"
-                  value={current.maxComfortDistanceKm}
-                  onChange={(e) => updateCurrent({ maxComfortDistanceKm: parseFloat(e.target.value) || 15 })}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono focus:outline-none focus:border-amber-400"
-                />
-              </div>
-              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-300">
-                🌱 Zero tailpipe emissions, zero fuel expense, and bypasses all Indian toll plaza requirements automatically.
-              </div>
+            <div>
+              <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+                Max Comfortable Distance (km)
+              </label>
+              <input
+                type="number"
+                value={current.maxComfortDistanceKm}
+                onChange={(e) => updateCurrent({ maxComfortDistanceKm: parseInt(e.target.value, 10) || 15 })}
+                className="w-full bg-[#0B0F14] border border-[#222E42] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
+              />
             </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between pt-5 mt-4 border-t border-slate-800">
+        {/* Action Buttons */}
+        <div className="mt-5 pt-3 border-t border-[#222E42] flex items-center justify-between">
           <button
             onClick={handleResetToDefaults}
-            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white"
+            className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-white"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>Reset to Standard Indian Averages</span>
+            <span>Reset Defaults</span>
           </button>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs text-slate-400 hover:text-white"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
-            >
-              <Save className="w-3.5 h-3.5" />
-              <span>Apply & Save Specs</span>
-            </button>
-          </div>
+          <button
+            onClick={handleSave}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow transition-all"
+          >
+            <Save className="w-3.5 h-3.5" />
+            <span>SAVE SPECS</span>
+          </button>
         </div>
       </div>
     </div>

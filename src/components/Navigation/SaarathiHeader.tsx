@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Navigation, 
   Radio, 
@@ -6,9 +6,6 @@ import {
   History, 
   Settings2, 
   Layers, 
-  CloudRain, 
-  Sun, 
-  Zap, 
   Sparkles,
   MapPin
 } from 'lucide-react';
@@ -27,7 +24,6 @@ interface SaarathiHeaderProps {
     waterlogging: boolean;
     tolls: boolean;
     charging: boolean;
-    parking: boolean;
   };
   onToggleLayer: (layer: keyof SaarathiHeaderProps['visibleLayers']) => void;
   isLiveJourney: boolean;
@@ -45,169 +41,155 @@ export const SaarathiHeader: React.FC<SaarathiHeaderProps> = ({
   isLiveJourney,
   onOpenAiPlanner
 }) => {
-  const [showLayerDropdown, setShowLayerDropdown] = React.useState(false);
+  const [showLayerDropdown, setShowLayerDropdown] = useState(false);
 
   return (
-    <header className="relative z-20 flex items-center justify-between px-4 sm:px-6 py-2.5 bg-[#0e131d]/90 backdrop-blur-md border-b border-white/10 select-none shadow-xl">
+    <header className="relative z-20 flex items-center justify-between px-3 sm:px-5 py-2 bg-[#0B0F14]/95 backdrop-blur-md border-b border-[#222E42] select-none">
       {/* Brand Identity */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700 shadow-lg shadow-amber-500/25 p-0.5">
-          <div className="w-full h-full bg-[#12110e] rounded-[10px] flex items-center justify-center">
-            {/* Charioteer / Compass emblem */}
-            <svg viewBox="0 0 24 24" className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <polygon points="12 4 14.5 10 20.5 12 14.5 14 12 20 9.5 14 3.5 12 9.5 10 12 4" fill="currentColor" fillOpacity="0.4" />
-            </svg>
-          </div>
-          <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
-          </span>
+      <div className="flex items-center gap-2.5">
+        <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-blue-600 text-white shadow-sm shrink-0">
+          <Navigation className="w-4 h-4 fill-white" />
         </div>
 
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-extrabold tracking-wider bg-gradient-to-r from-amber-200 via-amber-400 to-amber-500 bg-clip-text text-transparent font-heading">
+          <div className="flex items-center gap-1.5">
+            <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-white font-heading">
               SAARATHI
             </h1>
-            <span className="hidden md:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30 tracking-wider">
-              GEO INTEL OS
+            <span className="hidden sm:inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold bg-blue-600/15 text-blue-400 border border-blue-500/30">
+              SMART MOBILITY
             </span>
           </div>
-          <p className="text-[11px] text-slate-400 tracking-wide hidden sm:block">
-            Every Journey Needs a Guide.
-          </p>
         </div>
       </div>
 
       {/* Main Navigation Tabs */}
-      <nav className="flex items-center gap-1 sm:gap-2 bg-slate-900/80 p-1 rounded-xl border border-white/5">
+      <nav className="flex items-center gap-1 bg-[#121824] p-1 rounded-xl border border-[#222E42]">
         <button
           onClick={() => setActiveTab('plan')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
+          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
             activeTab === 'plan'
-              ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-md shadow-amber-500/20'
-              : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'text-slate-300 hover:text-white hover:bg-[#182232]'
           }`}
         >
-          <Navigation className="w-3.5 h-3.5" />
-          <span>Plan Journey</span>
+          <Navigation className="w-3 h-3" />
+          <span>Plan</span>
         </button>
 
         <button
           onClick={() => setActiveTab('live')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 relative ${
+          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all relative ${
             activeTab === 'live'
-              ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-md shadow-amber-500/20'
-              : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'text-slate-300 hover:text-white hover:bg-[#182232]'
           }`}
         >
-          <Radio className={`w-3.5 h-3.5 ${isLiveJourney ? 'text-emerald-400 animate-pulse' : ''}`} />
-          <span>Live Journey</span>
+          <Radio className={`w-3 h-3 ${isLiveJourney ? 'text-emerald-400' : ''}`} />
+          <span>Live</span>
           {isLiveJourney && (
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
           )}
         </button>
 
         <button
           onClick={() => setActiveTab('intelligence')}
-          className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
+          className={`hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
             activeTab === 'intelligence'
-              ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-md shadow-amber-500/20'
-              : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'text-slate-300 hover:text-white hover:bg-[#182232]'
           }`}
         >
-          <ShieldAlert className="w-3.5 h-3.5" />
-          <span>Road Intelligence</span>
+          <ShieldAlert className="w-3 h-3" />
+          <span>Hazards</span>
         </button>
 
         <button
           onClick={() => setActiveTab('history')}
-          className={`hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
+          className={`hidden md:flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
             activeTab === 'history'
-              ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-md shadow-amber-500/20'
-              : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'text-slate-300 hover:text-white hover:bg-[#182232]'
           }`}
         >
-          <History className="w-3.5 h-3.5" />
-          <span>Trip History</span>
+          <History className="w-3 h-3" />
+          <span>History</span>
         </button>
 
         <button
           onClick={() => setActiveTab('vehicle')}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
+          className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold transition-all ${
             activeTab === 'vehicle'
-              ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-md shadow-amber-500/20'
-              : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              ? 'bg-blue-600 text-white'
+              : 'text-slate-300 hover:text-white hover:bg-[#182232]'
           }`}
-          title="Vehicle Personalization & Settings"
+          title="Vehicle Specs"
         >
           <Settings2 className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Vehicle</span>
+          <span className="hidden sm:inline">Specs</span>
         </button>
       </nav>
 
-      {/* Right Controls: City Preset, AI Natural Language trigger, Layers, Weather */}
-      <div className="flex items-center gap-2 sm:gap-3">
+      {/* Right Controls: AI trigger, City presets, Layers */}
+      <div className="flex items-center gap-1.5 sm:gap-2">
         {/* Natural Language AI button */}
         <button
           onClick={onOpenAiPlanner}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-amber-500/20 via-amber-400/10 to-amber-600/20 text-amber-300 border border-amber-500/40 hover:border-amber-400 hover:bg-amber-500/30 transition-all duration-200 shadow-md group"
-          title="Natural Language AI Journey Planner"
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-600/15 text-blue-300 border border-blue-500/30 hover:bg-blue-600/25 transition-all"
+          title="Natural Language Query Assistant"
         >
-          <Sparkles className="w-3.5 h-3.5 text-amber-400 group-hover:rotate-12 transition-transform" />
-          <span className="hidden sm:inline">Ask Saarathi AI</span>
+          <Sparkles className="w-3 h-3 text-blue-400" />
+          <span className="hidden sm:inline">Ask AI</span>
         </button>
 
         {/* City Preset Selector */}
-        <div className="relative hidden sm:block">
+        <div className="relative hidden md:block">
           <select
             value={selectedCityId}
             onChange={(e) => onSelectCityPreset(e.target.value)}
-            className="appearance-none bg-slate-900 border border-slate-700/80 rounded-lg pl-7 pr-7 py-1.5 text-xs font-medium text-slate-200 hover:border-amber-500/50 focus:outline-none focus:border-amber-500 transition-colors cursor-pointer"
+            className="appearance-none bg-[#121824] border border-[#222E42] rounded-lg pl-6 pr-6 py-1.5 text-xs font-medium text-slate-200 hover:border-slate-500 focus:outline-none cursor-pointer"
           >
             {PRESET_JOURNEYS.map((preset) => (
-              <option key={preset.id} value={preset.id} className="bg-slate-900 text-white">
-                📍 {preset.cityName} Demo
+              <option key={preset.id} value={preset.id} className="bg-[#121824] text-white">
+                {preset.cityName} Demo
               </option>
             ))}
           </select>
-          <MapPin className="w-3.5 h-3.5 text-amber-400 absolute left-2 top-2.5 pointer-events-none" />
+          <MapPin className="w-3 h-3 text-blue-400 absolute left-2 top-2 pointer-events-none" />
         </div>
 
         {/* Layers Overlay Toggle Dropdown */}
         <div className="relative">
           <button
             onClick={() => setShowLayerDropdown(!showLayerDropdown)}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-900 border border-slate-700 hover:border-amber-500/40 text-slate-300 hover:text-white transition-colors"
-            title="Toggle Map Overlays"
+            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium bg-[#121824] border border-[#222E42] text-slate-300 hover:text-white transition-colors"
+            title="Toggle Map Layers"
           >
-            <Layers className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden md:inline">Layers</span>
+            <Layers className="w-3.5 h-3.5 text-slate-400" />
+            <span className="hidden lg:inline">Layers</span>
           </button>
 
           {showLayerDropdown && (
-            <div className="absolute right-0 mt-2 w-56 p-2 rounded-xl bg-slate-900/95 border border-slate-700 shadow-2xl backdrop-blur-xl z-50 animate-in fade-in zoom-in-95">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-2 py-1 border-b border-slate-800">
-                Road Intelligence Overlays
+            <div className="absolute right-0 mt-2 w-52 p-2 rounded-xl bg-[#121824] border border-[#222E42] shadow-2xl z-50 animate-in fade-in">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2 py-1 border-b border-[#222E42]">
+                Map Overlays
               </div>
               <div className="mt-1 space-y-1 text-xs">
                 {[
-                  { key: 'potholes', label: '🕳️ Pothole Clusters', active: visibleLayers.potholes },
-                  { key: 'hazards', label: '🚧 Hazards & Rough Roads', active: visibleLayers.hazards },
-                  { key: 'waterlogging', label: '🌊 Monsoon Waterlogging', active: visibleLayers.waterlogging },
-                  { key: 'tolls', label: '🛣️ Toll Plazas & Fees', active: visibleLayers.tolls },
-                  { key: 'charging', label: '⚡ EV Superchargers', active: visibleLayers.charging },
-                  { key: 'parking', label: '🅿️ Parking Availability', active: visibleLayers.parking },
+                  { key: 'potholes', label: '🕳️ Potholes', active: visibleLayers.potholes },
+                  { key: 'hazards', label: '🚧 Rough Roads', active: visibleLayers.hazards },
+                  { key: 'waterlogging', label: '🌊 Waterlogging', active: visibleLayers.waterlogging },
+                  { key: 'tolls', label: '🛣️ Toll Plazas', active: visibleLayers.tolls },
+                  { key: 'charging', label: '⚡ EV Chargers', active: visibleLayers.charging }
                 ].map((item) => (
                   <button
                     key={item.key}
                     onClick={() => onToggleLayer(item.key as any)}
-                    className="flex items-center justify-between w-full px-2 py-1.5 rounded-lg text-left hover:bg-slate-800/80 transition-colors"
+                    className="flex items-center justify-between w-full px-2 py-1 rounded-lg text-left hover:bg-[#182232] transition-colors"
                   >
                     <span>{item.label}</span>
-                    <span className={`w-3.5 h-3.5 rounded flex items-center justify-center text-[10px] font-bold ${
-                      item.active ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-600'
+                    <span className={`w-3.5 h-3.5 rounded flex items-center justify-center text-[9px] font-bold ${
+                      item.active ? 'bg-blue-600 text-white' : 'bg-[#182232] text-slate-500'
                     }`}>
                       {item.active ? '✓' : ''}
                     </span>
@@ -216,13 +198,6 @@ export const SaarathiHeader: React.FC<SaarathiHeaderProps> = ({
               </div>
             </div>
           )}
-        </div>
-
-        {/* Weather Indicator */}
-        <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900/80 border border-slate-800 text-xs text-slate-300">
-          <span>{weather.conditionIcon}</span>
-          <span className="font-semibold text-white">{weather.temperatureC}°C</span>
-          <span className="text-[10px] text-slate-400">{weather.city}</span>
         </div>
       </div>
     </header>

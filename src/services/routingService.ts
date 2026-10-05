@@ -174,7 +174,7 @@ export function generateCandidateRoutes(
     let arrivalBattery: number | undefined = undefined;
     let energyKwh: number | undefined = undefined;
     const tollCost = tolls.reduce((acc, t) => acc + (t.fee[vehicle.type] || 0), 0);
-    const parkingCost = vehicle.type === 'bicycle' ? 0 : 35; // typical municipal parking
+    const parkingCost = 0;
 
     if (vehicle.type === 'ev') {
       const eff = vehicle.efficiencyKmPerKwh || 7.2;
@@ -191,7 +191,7 @@ export function generateCandidateRoutes(
       fuelCost = Math.round(fuelL * (vehicle.fuelPricePerL || 106.5));
     }
 
-    const totalCost = fuelCost + tollCost + parkingCost;
+    const totalCost = fuelCost + tollCost;
     return { fuelL, fuelCost, tollCost, parkingCost, totalCost, arrivalBattery, energyKwh };
   };
 

@@ -7,14 +7,10 @@ import {
   Route, 
   NaturalLanguageConstraint, 
   CrowdsourcedReport, 
-  TripHistoryItem,
-  TollPlaza,
-  RoadHazard,
-  ChargingStation,
-  ParkingLot
+  TripHistoryItem
 } from './types';
-import { DEFAULT_VEHICLE_CONFIGS, loadVehicleConfigs, saveVehicleConfigs } from './services/vehicleDefaults';
-import { PRESET_JOURNEYS, PresetJourney } from './services/demoPresets';
+import { loadVehicleConfigs, saveVehicleConfigs } from './services/vehicleDefaults';
+import { PRESET_JOURNEYS } from './services/demoPresets';
 import { generateCandidateRoutes } from './services/routingService';
 import { getWeatherForLocation } from './services/weatherService';
 import { getCrowdReports, saveCrowdReport, upvoteReport } from './services/crowdReports';
@@ -37,7 +33,7 @@ import { ReportHazardModal } from './components/RoadIntelligence/ReportHazardMod
 import { TripHistoryDrawer } from './components/History/TripHistoryDrawer';
 import { VehicleSettingsModal } from './components/Vehicle/VehicleSettingsModal';
 import { LocationSearchModal } from './components/Planner/LocationSearchModal';
-import { Sparkles, SlidersHorizontal, Table, MapPin, Compass } from 'lucide-react';
+import { Table } from 'lucide-react';
 
 export function App() {
   // Navigation State
@@ -62,14 +58,13 @@ export function App() {
   const [destCoords, setDestCoords] = useState<Coordinates>(currentPreset.destinationCoords);
   const [destName, setDestName] = useState<string>(currentPreset.destinationName);
 
-  // Overlays / Layers State
+  // Overlays / Layers State (Parking removed to eliminate clutter)
   const [visibleLayers, setVisibleLayers] = useState({
     potholes: true,
     hazards: true,
     waterlogging: true,
     tolls: true,
-    charging: true,
-    parking: true
+    charging: true
   });
 
   // Modals & Drawers State
@@ -153,7 +148,7 @@ export function App() {
 
   // Map Click Handler (sets destination directly)
   const handleMapClick = (coords: Coordinates) => {
-    if (activeTab === 'live' && liveJourney.isPlaying) return; // don't interrupt active live journey
+    if (activeTab === 'live' && liveJourney.isPlaying) return;
     setDestCoords(coords);
     setDestName(`Custom Map Pin (${coords[0].toFixed(3)}, ${coords[1].toFixed(3)})`);
     liveJourney.resetJourney();
@@ -218,7 +213,7 @@ export function App() {
       durationMin: activeRoute.durationMin,
       totalCost: activeRoute.totalCost,
       saarathiScore: activeRoute.saarathiScore,
-      savingsVsFastest: Math.max(40, Math.round(activeRoute.totalCost * 0.3)),
+      savingsVsFastest: Math.max(30, Math.round(activeRoute.totalCost * 0.3)),
       routeName: activeRoute.name,
       roadQualityScore: activeRoute.roadQualityScore
     });
@@ -232,7 +227,7 @@ export function App() {
   };
 
   return (
-    <div className="relative w-full h-full flex flex-col bg-[#0b0f17] text-slate-100 overflow-hidden select-none">
+    <div className="relative w-full h-full flex flex-col bg-[#0B0F14] text-slate-100 overflow-hidden select-none font-sans">
       {/* 1. MAIN GLOBAL HEADER */}
       <SaarathiHeader
         activeTab={activeTab}
@@ -252,9 +247,9 @@ export function App() {
         onOpenAiPlanner={() => setIsAiPlannerOpen(true)}
       />
 
-      {/* 2. MAIN MAP VIEWPORT & FLOATING WORKSPACE */}
+      {/* 2. MAIN MAP VIEWPORT & MOBILE WORKSPACE */}
       <div className="relative flex-1 w-full h-full overflow-hidden">
-        {/* Full-bleed interactive map */}
+        {/* Full interactive map canvas */}
         <SaarathiMap
           origin={originCoords}
           destination={destCoords}
@@ -272,14 +267,13 @@ export function App() {
           tollPlazas={currentPreset.tollPlazas}
           roadHazards={currentPreset.hazards}
           chargingStations={currentPreset.chargingStations}
-          parkingLots={currentPreset.parkingLots}
           onMapClick={handleMapClick}
           onSelectRoute={(id) => setSelectedRouteId(id)}
         />
 
-        {/* TAB 1: PLAN JOURNEY FLOATING LEFT SIDEBAR */}
+        {/* TAB 1: PLAN JOURNEY MOBILE BOTTOM SHEET / FLOATING PANEL */}
         {activeTab === 'plan' && (
-          <aside className="absolute top-4 left-4 z-20 w-[94%] sm:w-[410px] max-h-[calc(100vh-80px)] overflow-y-auto space-y-3 pointer-events-auto pr-1">
+          <aside className="absolute bottom-0 sm:bottom-auto sm:top-3 sm:left-3 z-20 w-full sm:w-[400px] max-h-[70vh] sm:max-h-[calc(100vh-70px)] overflow-y-auto space-y-2.5 pointer-events-auto p-3 sm:p-0 bg-[#0B0F14]/90 sm:bg-transparent backdrop-blur-md sm:backdrop-blur-none border-t sm:border-t-0 border-[#222E42] rounded-t-2xl sm:rounded-none">
             {/* Origin & Destination Card */}
             <DestinationCard
               originName={originName}
@@ -309,16 +303,15 @@ export function App() {
               onSelectMode={(mode) => setJourneyMode(mode)}
             />
 
-            {/* Routes List Header & Multi-route matrix button */}
-            <div className="flex items-center justify-between px-1 pt-1">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                <span>Evaluated Routes</span>
-                <span className="text-amber-400 font-mono">({candidateRoutes.length})</span>
+            {/* Evaluated Routes Header */}
+            <div className="flex items-center justify-between px-1 pt-0.5">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                Evaluated Routes ({candidateRoutes.length})
               </span>
 
               <button
                 onClick={() => setIsComparisonOpen(true)}
-                className="flex items-center gap-1 text-[11px] font-bold text-amber-400 hover:text-amber-300 transition-colors"
+                className="flex items-center gap-1 text-[11px] font-bold text-blue-400 hover:text-blue-300 transition-colors"
               >
                 <Table className="w-3.5 h-3.5" />
                 <span>Compare Matrix</span>
@@ -326,7 +319,7 @@ export function App() {
             </div>
 
             {/* Candidate Route Cards */}
-            <div className="space-y-2.5 pb-4">
+            <div className="space-y-2 pb-4">
               {candidateRoutes.map((route) => (
                 <RouteCard
                   key={route.id}
@@ -341,7 +334,7 @@ export function App() {
           </aside>
         )}
 
-        {/* TAB 2: LIVE JOURNEY HUD OVERLAY */}
+        {/* TAB 2: LIVE JOURNEY HUD */}
         {activeTab === 'live' && activeRoute && (
           <LiveJourneyHUD
             route={activeRoute}
@@ -357,6 +350,7 @@ export function App() {
             dynamicReroute={liveJourney.dynamicReroute}
             isOffRoute={liveJourney.isOffRoute}
             isRecalculating={liveJourney.isRecalculating}
+            roadShockCount={liveJourney.roadShockCount}
             remainingDistanceKm={liveJourney.remainingDistanceKm}
             remainingDurationMin={liveJourney.remainingDurationMin}
             onTogglePlay={liveJourney.togglePlay}
@@ -366,6 +360,7 @@ export function App() {
             onAcceptReroute={liveJourney.acceptReroute}
             onDismissReroute={liveJourney.dismissReroute}
             onSimulateOffRoute={liveJourney.simulateOffRoute}
+            onSimulateRoadShock={liveJourney.simulateRoadShock}
             onEndJourney={() => {
               liveJourney.resetJourney();
               setActiveTab('plan');
@@ -373,9 +368,9 @@ export function App() {
           />
         )}
 
-        {/* TAB 3: ROAD INTELLIGENCE DRAWER */}
+        {/* TAB 3: ROAD HAZARDS DRAWER */}
         {activeTab === 'intelligence' && (
-          <div className="absolute top-4 left-4 z-20 w-[94%] sm:w-[480px] max-h-[calc(100vh-80px)] pointer-events-auto">
+          <div className="absolute top-3 left-3 z-20 w-[94%] sm:w-[460px] max-h-[calc(100vh-70px)] pointer-events-auto">
             <RoadIntelligenceDrawer
               reports={crowdReports}
               onUpvoteReport={handleUpvoteReport}
@@ -383,14 +378,14 @@ export function App() {
               weather={weather}
               visibleLayers={visibleLayers}
               onToggleLayer={handleToggleLayer}
-              baseDurationMin={activeRoute?.durationMin || 32}
+              baseDurationMin={activeRoute?.durationMin || 30}
             />
           </div>
         )}
 
         {/* TAB 4: TRIP HISTORY DRAWER */}
         {activeTab === 'history' && (
-          <div className="absolute top-4 left-4 z-20 w-[94%] sm:w-[460px] max-h-[calc(100vh-80px)] pointer-events-auto">
+          <div className="absolute top-3 left-3 z-20 w-[94%] sm:w-[440px] max-h-[calc(100vh-70px)] pointer-events-auto">
             <TripHistoryDrawer
               historyItems={tripHistoryList}
               onOpenTrip={handleOpenPreviousTrip}
@@ -399,15 +394,13 @@ export function App() {
         )}
       </div>
 
-      {/* 3. MODALS & OVERLAYS */}
-      {/* Natural Language AI Planner Modal */}
+      {/* 3. MODALS */}
       <NaturalLanguagePlanner
         isOpen={isAiPlannerOpen}
         onClose={() => setIsAiPlannerOpen(false)}
         onApplyConstraints={handleApplyAiConstraints}
       />
 
-      {/* Multi-Route Matrix Comparison Modal */}
       <RouteComparisonModal
         isOpen={isComparisonOpen}
         onClose={() => setIsComparisonOpen(false)}
@@ -418,7 +411,6 @@ export function App() {
         vehicle={activeVehicle}
       />
 
-      {/* Vehicle Settings / Personalization Modal */}
       <VehicleSettingsModal
         isOpen={isVehicleSettingsOpen}
         onClose={() => setIsVehicleSettingsOpen(false)}
@@ -427,7 +419,6 @@ export function App() {
         onSaveConfigs={handleSaveVehicleConfigs}
       />
 
-      {/* Report Live Road Hazard Modal */}
       <ReportHazardModal
         isOpen={isReportHazardOpen}
         onClose={() => setIsReportHazardOpen(false)}
@@ -435,7 +426,6 @@ export function App() {
         onSubmitReport={handleSubmitHazard}
       />
 
-      {/* Location / Destination Search Modal */}
       <LocationSearchModal
         isOpen={isLocationSearchOpen}
         onClose={() => setIsLocationSearchOpen(false)}
@@ -453,7 +443,6 @@ export function App() {
         }}
       />
 
-      {/* Trip Completed Summary Modal */}
       {completedStats && activeRoute && (
         <TripSummaryModal
           isOpen={isTripSummaryOpen}

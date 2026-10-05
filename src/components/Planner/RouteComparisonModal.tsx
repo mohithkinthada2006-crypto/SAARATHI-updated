@@ -1,6 +1,6 @@
 import React from 'react';
 import { Route, VehicleConfig } from '../../types';
-import { X, Sparkles, Check, ArrowRight, Play } from 'lucide-react';
+import { X, Sparkles, Check, Play } from 'lucide-react';
 
 interface RouteComparisonModalProps {
   isOpen: boolean;
@@ -24,74 +24,72 @@ export const RouteComparisonModal: React.FC<RouteComparisonModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-4xl bg-slate-900 border border-slate-700/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150">
+      <div className="relative w-full max-w-3xl bg-[#121824] border border-[#222E42] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-800 bg-slate-950/60">
+        <div className="flex items-center justify-between p-4 border-b border-[#222E42] bg-[#0B0F14]">
           <div>
             <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400">
+              <span className="p-1 rounded-md bg-blue-600/20 text-blue-400">
                 <Sparkles className="w-4 h-4" />
               </span>
-              <h2 className="text-lg font-bold text-white font-heading">
-                Multi-Route Intelligence Matrix
+              <h2 className="text-base font-bold text-white font-heading">
+                Route Comparison Matrix
               </h2>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Evaluating Time, Cost, Road Integrity, Toll Plazas, and {vehicle.name} dynamics.
+              Evaluating Time, Cost, Road Quality, and {vehicle.name} dynamics.
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#182232] transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Comparison Table */}
-        <div className="p-5 overflow-x-auto overflow-y-auto">
+        <div className="p-4 overflow-x-auto overflow-y-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="border-b border-slate-800">
-                <th className="p-3 font-bold uppercase tracking-wider text-slate-400 bg-slate-950/40 rounded-l-xl">
+              <tr className="border-b border-[#222E42]">
+                <th className="p-2.5 font-bold uppercase tracking-wider text-slate-400 bg-[#0B0F14] rounded-l-lg">
                   Metric
                 </th>
                 {routes.map((r) => {
-                  const isSelected = r.id === selectedRouteId;
                   return (
                     <th
                       key={r.id}
-                      className={`p-3 text-center transition-colors min-w-[170px] ${
+                      className={`p-2.5 text-center transition-colors min-w-[150px] ${
                         r.isRecommended
-                          ? 'bg-amber-500/10 border-x border-t border-amber-500/40'
-                          : 'bg-slate-950/20'
+                          ? 'bg-emerald-950/20 border-t border-emerald-500/40'
+                          : 'bg-[#0B0F14]'
                       }`}
                     >
                       <div className="flex flex-col items-center gap-1">
                         {r.isRecommended && (
-                          <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-400 text-slate-950">
-                            Saarathi Choice
+                          <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-500 text-slate-950">
+                            Recommended
                           </span>
                         )}
-                        <span className="font-bold text-white text-sm">{r.name}</span>
-                        <span className="text-[10px] text-slate-400">{r.tag}</span>
+                        <span className="font-bold text-white text-xs sm:text-sm">{r.name}</span>
                       </div>
                     </th>
                   );
                 })}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 font-mono">
+            <tbody className="divide-y divide-[#222E42] font-mono">
               {/* Saarathi Score */}
-              <tr className="bg-amber-500/5">
-                <td className="p-3 font-sans font-bold text-amber-300">Saarathi Score</td>
+              <tr className="bg-blue-600/5">
+                <td className="p-2.5 font-sans font-bold text-blue-300">Saarathi Score</td>
                 {routes.map((r) => (
-                  <td key={r.id} className="p-3 text-center">
-                    <span className={`inline-block px-2.5 py-1 rounded-lg text-sm font-black ${
+                  <td key={r.id} className="p-2.5 text-center">
+                    <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${
                       r.isRecommended
-                        ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/30'
-                        : 'bg-slate-800 text-slate-200'
+                        ? 'bg-emerald-500 text-slate-950'
+                        : 'bg-[#182232] text-slate-200'
                     }`}>
                       {r.saarathiScore} / 100
                     </span>
@@ -99,11 +97,11 @@ export const RouteComparisonModal: React.FC<RouteComparisonModalProps> = ({
                 ))}
               </tr>
 
-              {/* Travel Time */}
+              {/* Time */}
               <tr>
-                <td className="p-3 font-sans text-slate-400">Duration (ETA)</td>
+                <td className="p-2.5 font-sans font-medium text-slate-300">Travel Time</td>
                 {routes.map((r) => (
-                  <td key={r.id} className="p-3 text-center font-bold text-white">
+                  <td key={r.id} className="p-2.5 text-center font-bold text-white">
                     {r.durationMin} mins
                   </td>
                 ))}
@@ -111,141 +109,94 @@ export const RouteComparisonModal: React.FC<RouteComparisonModalProps> = ({
 
               {/* Distance */}
               <tr>
-                <td className="p-3 font-sans text-slate-400">Total Distance</td>
+                <td className="p-2.5 font-sans font-medium text-slate-300">Distance</td>
                 {routes.map((r) => (
-                  <td key={r.id} className="p-3 text-center text-slate-300">
+                  <td key={r.id} className="p-2.5 text-center text-slate-300">
                     {r.distanceKm} km
-                  </td>
-                ))}
-              </tr>
-
-              {/* Toll Charges */}
-              <tr>
-                <td className="p-3 font-sans text-slate-400">Tolls ({vehicle.type})</td>
-                {routes.map((r) => (
-                  <td key={r.id} className="p-3 text-center">
-                    {r.tollCost === 0 ? (
-                      <span className="text-emerald-400 font-bold">₹0 (Toll Free)</span>
-                    ) : (
-                      <span className="text-amber-400 font-bold">₹{r.tollCost} ({r.tollCount} plazas)</span>
-                    )}
-                  </td>
-                ))}
-              </tr>
-
-              {/* Fuel / Energy Cost */}
-              <tr>
-                <td className="p-3 font-sans text-slate-400">
-                  {vehicle.type === 'ev' ? 'Energy Cost' : 'Fuel Cost'}
-                </td>
-                {routes.map((r) => (
-                  <td key={r.id} className="p-3 text-center text-slate-300">
-                    ₹{r.fuelCost}
-                    {vehicle.type === 'ev' && (
-                      <span className="block text-[10px] text-slate-500">
-                        {r.energyConsumptionKwh} kWh
-                      </span>
-                    )}
-                  </td>
-                ))}
-              </tr>
-
-              {/* Total Estimated Cost */}
-              <tr className="bg-slate-950/40">
-                <td className="p-3 font-sans font-bold text-white">Total Trip Cost</td>
-                {routes.map((r) => (
-                  <td key={r.id} className="p-3 text-center text-sm font-black text-emerald-400">
-                    ₹{r.totalCost}
                   </td>
                 ))}
               </tr>
 
               {/* Road Quality */}
               <tr>
-                <td className="p-3 font-sans text-slate-400">Road Quality Index</td>
+                <td className="p-2.5 font-sans font-medium text-slate-300">Road Quality</td>
                 {routes.map((r) => (
-                  <td key={r.id} className="p-3 text-center">
-                    <span className={`font-bold ${r.roadQualityScore >= 85 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                      {r.roadQualityScore} / 100
-                    </span>
+                  <td key={r.id} className="p-2.5 text-center font-bold text-slate-200">
+                    {r.roadQualityScore}%
                   </td>
                 ))}
               </tr>
 
-              {/* Hazards & Potholes */}
+              {/* Hazards */}
               <tr>
-                <td className="p-3 font-sans text-slate-400">Hazards / Potholes</td>
+                <td className="p-2.5 font-sans font-medium text-slate-300">Hazards</td>
                 {routes.map((r) => (
-                  <td key={r.id} className="p-3 text-center text-slate-300">
-                    {r.hazardCount === 0 ? (
-                      <span className="text-emerald-400">None detected</span>
-                    ) : (
-                      <span>{r.hazardCount} segments</span>
-                    )}
+                  <td key={r.id} className="p-2.5 text-center text-slate-300">
+                    {r.hazardCount} sections
                   </td>
                 ))}
               </tr>
 
-              {/* Vehicle Suitability */}
+              {/* Tolls */}
               <tr>
-                <td className="p-3 font-sans text-slate-400">Vehicle Match</td>
+                <td className="p-2.5 font-sans font-medium text-slate-300">Tolls</td>
                 {routes.map((r) => (
-                  <td key={r.id} className="p-3 text-center text-slate-200">
-                    {r.vehicleSuitability}%
+                  <td key={r.id} className="p-2.5 text-center text-slate-300">
+                    ₹{r.tollCost} ({r.tollCount} plazas)
+                  </td>
+                ))}
+              </tr>
+
+              {/* Total Cost */}
+              <tr className="bg-emerald-950/10">
+                <td className="p-2.5 font-sans font-bold text-emerald-300">Total Trip Cost</td>
+                {routes.map((r) => (
+                  <td key={r.id} className="p-2.5 text-center font-bold text-emerald-400">
+                    ₹{r.totalCost}
                   </td>
                 ))}
               </tr>
 
               {/* Action row */}
-              <tr className="border-t-2 border-slate-700/80">
-                <td className="p-3 font-sans font-bold text-slate-400">Select Route</td>
-                {routes.map((r) => {
-                  const isSelected = r.id === selectedRouteId;
-                  return (
-                    <td key={r.id} className="p-3 text-center">
-                      <button
-                        onClick={() => onSelectRoute(r.id)}
-                        className={`w-full py-2 px-3 rounded-xl text-xs font-bold transition-all ${
-                          isSelected
-                            ? 'bg-amber-500 text-slate-950 font-black shadow-lg shadow-amber-500/20'
-                            : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'
-                        }`}
-                      >
-                        {isSelected ? '✓ ACTIVE' : 'CHOOSE'}
-                      </button>
-                    </td>
-                  );
-                })}
+              <tr>
+                <td className="p-2.5 font-sans text-slate-400">Select</td>
+                {routes.map((r) => (
+                  <td key={r.id} className="p-2.5 text-center">
+                    <button
+                      onClick={() => {
+                        onSelectRoute(r.id);
+                        onClose();
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        r.id === selectedRouteId
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-[#182232] hover:bg-[#1E2B3E] text-slate-300'
+                      }`}
+                    >
+                      {r.id === selectedRouteId ? 'Selected' : 'Choose'}
+                    </button>
+                  </td>
+                ))}
               </tr>
             </tbody>
           </table>
         </div>
 
-        {/* Footer actions */}
-        <div className="flex items-center justify-between p-4 border-t border-slate-800 bg-slate-950/80">
-          <div className="text-xs text-slate-400">
-            Selected: <strong className="text-amber-300 font-bold">
-              {routes.find(r => r.id === selectedRouteId)?.name}
-            </strong>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800"
-            >
-              Back to Map
-            </button>
-            <button
-              onClick={() => {
-                onClose();
-                onStartJourney();
-              }}
-              className="flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 text-xs font-black shadow-lg shadow-amber-500/30 hover:scale-[1.02] active:scale-[0.98] transition-transform"
-            >
-              <Play className="w-3.5 h-3.5 fill-slate-950" />
-              <span>START LIVE JOURNEY</span>
-            </button>
-          </div>
+        {/* Footer */}
+        <div className="p-3 border-t border-[#222E42] bg-[#0B0F14] flex items-center justify-between">
+          <span className="text-[11px] text-slate-400">
+            Selected: <strong className="text-white">{routes.find(r => r.id === selectedRouteId)?.name}</strong>
+          </span>
+          <button
+            onClick={() => {
+              onClose();
+              onStartJourney();
+            }}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow"
+          >
+            <Play className="w-3.5 h-3.5 fill-white" />
+            <span>START SELECTED ROUTE</span>
+          </button>
         </div>
       </div>
     </div>
