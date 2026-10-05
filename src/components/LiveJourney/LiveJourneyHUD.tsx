@@ -174,24 +174,51 @@ export const LiveJourneyHUD: React.FC<LiveJourneyHUDProps> = ({
 
       {/* 3. DYNAMIC REROUTING OFFER POPUP */}
       {dynamicReroute && (
-        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-lg animate-in zoom-in-95 duration-200 pointer-events-auto">
-          <div className="p-4 rounded-2xl bg-[#121824] border-2 border-blue-500 shadow-2xl text-slate-100">
-            <div className="flex items-center justify-between pb-2 border-b border-[#222E42]">
-              <div className="flex items-center gap-1.5 text-blue-400 font-bold text-xs uppercase tracking-wider">
-                <AlertTriangle className="w-4 h-4" />
-                <span>Saarathi Dynamic Reroute</span>
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 w-[94%] max-w-lg animate-in zoom-in-95 duration-200 pointer-events-auto">
+          <div className="p-4 rounded-2xl bg-[#121824] border-2 border-amber-500/70 shadow-2xl text-slate-100">
+            <div className="flex items-center justify-between pb-2.5 border-b border-[#222E42]">
+              <div className="flex items-center gap-1.5 text-amber-400 font-bold text-xs uppercase tracking-wider">
+                <AlertTriangle className="w-4 h-4 text-amber-400" />
+                <span>Live Hazard Rerouting</span>
               </div>
               <button
                 onClick={onDismissReroute}
-                className="text-slate-400 hover:text-white"
+                className="text-slate-400 hover:text-white text-sm"
               >
                 ✕
               </button>
             </div>
 
-            <div className="mt-2.5">
-              <h4 className="font-bold text-sm text-white">{dynamicReroute.title}</h4>
-              <p className="text-xs text-slate-300 mt-1">{dynamicReroute.reason}</p>
+            {/* Clear Status Notice */}
+            <div className="mt-2.5 space-y-0.5">
+              <h4 className="font-bold text-sm text-white">Hazard detected ahead</h4>
+              <p className="text-xs text-rose-400 font-medium">This route is no longer recommended.</p>
+              <p className="text-xs text-emerald-400 font-medium">Alternative route found — continue from your current location.</p>
+            </div>
+
+            {/* Route Comparison Cards */}
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+              <div className="p-2.5 rounded-xl bg-rose-950/30 border border-rose-500/40">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Current Route</span>
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                    Hazard Detected
+                  </span>
+                </div>
+                <div className="text-xs font-bold text-slate-200 mt-1 truncate">{dynamicReroute.currentRouteName}</div>
+                <div className="text-[10px] text-rose-300/80 mt-0.5">Severe shock & rough road risk</div>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-emerald-950/30 border border-emerald-500/50">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase font-bold text-emerald-400">Alternative Route</span>
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    Recommended
+                  </span>
+                </div>
+                <div className="text-xs font-bold text-white mt-1 truncate">{dynamicReroute.alternativeRouteName}</div>
+                <div className="text-[10px] text-emerald-300 mt-0.5">Reason: Avoids reported hazard / unsafe road segment</div>
+              </div>
             </div>
 
             {/* Comparison delta pill */}
@@ -220,9 +247,9 @@ export const LiveJourneyHUD: React.FC<LiveJourneyHUDProps> = ({
               </button>
               <button
                 onClick={onAcceptReroute}
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow transition-all"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg transition-all"
               >
-                <span>SWITCH ROUTE</span>
+                <span>SWITCH TO ALTERNATIVE</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>

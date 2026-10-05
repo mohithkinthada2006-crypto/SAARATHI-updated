@@ -308,3 +308,118 @@ export function generateCandidateRoutes(
 
   return batch;
 }
+
+export function recalculateLiveReroute(
+  currentLocation: Coordinates,
+  destination: Coordinates,
+  vehicle: VehicleConfig,
+  currentRoute: Route,
+  traveledCoords: Coordinates[],
+  hazardReason: string = 'Road Shock / Rough Road Ahead'
+): {
+  alternativeRoute: Route;
+  degradedCurrentRoute: Route;
+  splitIndex: number;
+} {
+  const directRemainingDist = haversineDistanceKm(currentLocation, destination);
+  const remainingDistKm = Math.max(1.2, Number((directRemainingDist * 1.2).toFixed(1)));
+  const remainingDurMin = Math.max(3, Math.round(remainingDistKm * 1.7));
+
+  // Generate smooth alternative detour from currentLocation to destination avoiding the hazardous segment
+  const remainingAlternativePolyline = generateSmoothRoadPolyline(currentLocation, destination, -0.36, 40);
+
+  // Ensure traveledCoords ends with currentLocation
+  const baseTraveled = traveledCoords.length > 0 ? [...traveledCoords] : [currentLocation];
+  
+  // Stitched coordinates = traveled so far + remaining bypass
+  const stitchedCoordinates = [...baseTraveled, ...remainingAlternativePolyline.slice(1)];
+  const splitIndex = baseTraveled.length - 1;
+
+  // Approximate traveled distance so far
+  let traveledDistKm = 0;
+  for (let i = 1; i < baseTraveled.length; i++) {
+    traveledDistKm += haversineDistanceKm(baseTraveled[i - 1], baseTraveled[i]);
+  }
+  traveledDistKm = Number(traveledDistKm.toFixed(1));
+
+  const totalDistKm = Number((traveledDistKm + remainingDistKm).toFixed(1));
+  const totalDurMin = Math.max(5, Math.round(currentRoute.durationMin * 0.4 + remainingDurMin));
+
+  // Calculate fuel/cost for the new route
+  let fuelL = 0;
+  let fuelCost = 0;
+  let arrivalBattery: number | undefined = undefined;
+  let energyKwh: number | undefined = undefined;
+
+  if (vehicle.type === 'ev') {
+    const eff = vehicle.efficiencyKmPerKwh || 7.2;
+    energyKwh = Number((totalDistKm / eff).toFixed(2));
+    fuelCost = Math.round(energyKwh * (vehicle.costPerKwh || 9.5));
+    const batteryPercentUsed = (energyKwh / (vehicle.batteryCapacityKwh || 40)) * 100;
+    arrivalBattery = Math.max(0, Math.round(vehicle.currentBatteryPercent - batteryPercentUsed));
+  } else if (vehicle.type === 'bicycle') {
+    fuelL = 0;
+    fuelCost = 0;
+  } else {
+    const mileage = vehicle.mileageKmPerL || (vehicle.type === 'bike' ? 45 : 15);
+    fuelL = Number((totalDistKm / mileage).toFixed(2));
+    fuelCost = Math.round(fuelL * (vehicle.fuelPricePerL || 106.5));
+  }
+
+  const alternativeRoute: Route = {
+    id: `reroute-alt-${Date.now()}`,
+    name: `${currentRoute.name} (Bypass)`,
+    tag: 'Recommended (Avoids Hazard)',
+    via: 'Via Smooth Bypass from current GPS location',
+    distanceKm: totalDistKm,
+    durationMin: totalDurMin,
+    coordinates: stitchedCoordinates,
+    tollCount: 0,
+    tollCost: 0,
+    tollPlazas: [],
+    fuelLiters: fuelL,
+    fuelCost: fuelCost,
+    parkingCost: 0,
+    totalCost: fuelCost,
+    roadQualityScore: 94,
+    roadHealthScore: 92,
+    hazardCount: 0,
+    hazards: [],
+    vehicleSuitability: 96,
+    saarathiScore: 95,
+    trafficStatus: 'light',
+    aiReasons: [
+      `Avoids reported hazard ahead from your current location`,
+      `Zero bottom-scrape or suspension shock risk on detour corridor`,
+      `Optimal arrival time maintained directly to destination`
+    ],
+    waterloggingRisk: 'low',
+    elevationGainM: 15,
+    estimatedArrivalBatteryPercent: arrivalBattery,
+    energyConsumptionKwh: energyKwh,
+    isRecommended: true
+  };
+
+  const degradedCurrentRoute: Route = {
+    ...currentRoute,
+    id: currentRoute.id,
+    tag: 'Hazard Ahead (Not Recommended)',
+    roadQualityScore: 42,
+    roadHealthScore: 40,
+    saarathiScore: 46,
+    isRecommended: false,
+    trafficStatus: 'heavy',
+    aiReasons: [
+      `Hazard (${hazardReason}) active ahead on this corridor`,
+      'High risk of vehicle suspension wear and severe road shock',
+      'This route is no longer recommended'
+    ]
+  };
+
+  return {
+    alternativeRoute,
+    degradedCurrentRoute,
+    splitIndex
+  };
+}
+

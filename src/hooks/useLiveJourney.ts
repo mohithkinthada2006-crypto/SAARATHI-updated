@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Coordinates, Route, VehicleConfig } from '../types';
+import { recalculateLiveReroute } from '../services/routingService';
 
 export interface LiveRoadEvent {
   id: string;
@@ -15,10 +16,16 @@ export interface LiveRoadEvent {
 export interface DynamicRerouteOffer {
   newRouteId: string;
   title: string;
+  subtitle?: string;
   reason: string;
+  currentRouteName: string;
+  alternativeRouteName: string;
   timeDiffMin: number;
   costDiffRs: number;
   hazardDiff: number;
+  stitchedAlternativeRoute: Route;
+  degradedCurrentRoute: Route;
+  splitIndex: number;
 }
 
 export function calculateBearing(coord1: Coordinates, coord2: Coordinates): number {
@@ -27,7 +34,7 @@ export function calculateBearing(coord1: Coordinates, coord2: Coordinates): numb
   const dLon = ((coord2[1] - coord1[1]) * Math.PI) / 180;
 
   const y = Math.sin(dLon) * Math.cos(lat2);
-  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(dLon);
   const brng = (Math.atan2(y, x) * 180) / Math.PI;
   return (brng + 360) % 360;
 }
@@ -35,8 +42,9 @@ export function calculateBearing(coord1: Coordinates, coord2: Coordinates): numb
 export function useLiveJourney(
   activeRoute: Route | null,
   vehicle: VehicleConfig,
-  allRoutes: Route[],
-  onSwitchRoute: (newRouteId: string) => void,
+  destinationCoords: Coordinates,
+  destinationName: string,
+  onApplyReroute: (newRoute: Route, updatedRoutes: Route[]) => void,
   onJourneyCompleted: (completedStats: any) => void
 ) {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -58,13 +66,17 @@ export function useLiveJourney(
   const [isRecalculating, setIsRecalculating] = useState<boolean>(false);
   const [roadShockCount, setRoadShockCount] = useState<number>(0);
 
-  // References
+  // References to preserve state across reroutes
   const animFrameRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number | null>(null);
   const progressRef = useRef<number>(0);
+  const currentCoordsRef = useRef<Coordinates | null>(null);
+  const traveledCoordsRef = useRef<Coordinates[]>([]);
   const triggeredEventsRef = useRef<Set<string>>(new Set());
   const rerouteTriggeredRef = useRef<boolean>(false);
   const lastShockTimeRef = useRef<number>(0);
+  const isReroutingRef = useRef<boolean>(false);
+  const activeRouteIdRef = useRef<string | null>(null);
 
   // Safe device motion listener for phone accelerometer
   useEffect(() => {
@@ -79,7 +91,7 @@ export function useLiveJourney(
       const y = acc.y || 0;
       const totalG = Math.sqrt(x * x + y * y + z * z);
 
-      // Detect vertical shock or sharp displacement (> 14 m/s² total vector or sharp delta)
+      // Detect vertical shock or sharp displacement (> 14.5 m/s² total vector)
       const now = Date.now();
       if (totalG > 14.5 && now - lastShockTimeRef.current > 3500) {
         lastShockTimeRef.current = now;
@@ -89,17 +101,8 @@ export function useLiveJourney(
           navigator.vibrate([100, 50, 100]);
         }
 
-        setActiveAlert({
-          id: `shock-${now}`,
-          type: 'shock',
-          title: 'Road Shock Detected',
-          message: `Vertical acceleration spike (+${(totalG / 9.8).toFixed(1)}G) recorded by phone sensor.`,
-          distanceAheadMeters: 0,
-          icon: '📉',
-          accentColor: 'amber'
-        });
-
-        setTimeout(() => setActiveAlert(null), 4000);
+        // Trigger dynamic reroute from current location
+        triggerLiveReroute(`Severe Road Shock (+${(totalG / 9.8).toFixed(1)}G)`);
       }
     };
 
@@ -114,13 +117,77 @@ export function useLiveJourney(
     };
   }, [isPlaying]);
 
-  // Reset when active route changes
+  // Recalculate and offer alternative route from current GPS position
+  const triggerLiveReroute = useCallback((hazardReason: string = 'Road Shock / Rough Road Ahead') => {
+    if (!activeRoute || !currentCoordsRef.current) return;
+    if (rerouteTriggeredRef.current) return;
+    rerouteTriggeredRef.current = true;
+
+    const curr = currentCoordsRef.current;
+    const { alternativeRoute, degradedCurrentRoute, splitIndex } = recalculateLiveReroute(
+      curr,
+      destinationCoords,
+      vehicle,
+      activeRoute,
+      traveledCoordsRef.current,
+      hazardReason
+    );
+
+    const timeDiff = Math.max(1, alternativeRoute.durationMin - activeRoute.durationMin);
+    const costSavings = Math.max(15, Math.round(activeRoute.totalCost - alternativeRoute.totalCost));
+    const hazardsAvoided = Math.max(1, activeRoute.hazardCount);
+
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate([80, 40, 80]);
+    }
+
+    setDynamicReroute({
+      newRouteId: alternativeRoute.id,
+      title: 'Hazard detected ahead',
+      subtitle: 'This route is no longer recommended.',
+      reason: 'Alternative route found — continue from your current location.',
+      currentRouteName: activeRoute.name,
+      alternativeRouteName: alternativeRoute.name,
+      timeDiffMin: timeDiff,
+      costDiffRs: costSavings,
+      hazardDiff: hazardsAvoided,
+      stitchedAlternativeRoute: alternativeRoute,
+      degradedCurrentRoute: degradedCurrentRoute,
+      splitIndex
+    });
+
+    setActiveAlert({
+      id: `alert-hz-reroute-${Date.now()}`,
+      type: 'hazard',
+      title: 'Hazard Detected Ahead',
+      message: 'This route is no longer recommended. Alternative route found from your current location.',
+      distanceAheadMeters: 0,
+      icon: '⚠️',
+      accentColor: 'rose'
+    });
+  }, [activeRoute, destinationCoords, vehicle]);
+
+  // Handle activeRoute ID changes without resetting in-flight journeys
   useEffect(() => {
-    if (activeRoute && activeRoute.coordinates.length > 0) {
+    if (!activeRoute || activeRoute.coordinates.length === 0) return;
+
+    if (isReroutingRef.current) {
+      // In-flight dynamic reroute applied: preserve progress & vehicle location
+      activeRouteIdRef.current = activeRoute.id;
+      isReroutingRef.current = false;
+      return;
+    }
+
+    if (activeRoute.id !== activeRouteIdRef.current) {
+      activeRouteIdRef.current = activeRoute.id;
       setCurrentCoords(activeRoute.coordinates[0]);
+      currentCoordsRef.current = activeRoute.coordinates[0];
+      traveledCoordsRef.current = [activeRoute.coordinates[0]];
+
       if (activeRoute.coordinates.length > 1) {
         setBearing(calculateBearing(activeRoute.coordinates[0], activeRoute.coordinates[1]));
       }
+
       setAccumulatedCost(0);
       setPaidTollIds(new Set());
       setProgress(0);
@@ -162,7 +229,9 @@ export function useLiveJourney(
         nextProgress = 1;
         progressRef.current = 1;
         setProgress(1);
-        setCurrentCoords(coords[totalPoints - 1]);
+        const finalPoint = coords[totalPoints - 1];
+        setCurrentCoords(finalPoint);
+        currentCoordsRef.current = finalPoint;
         setIsPlaying(false);
         onJourneyCompleted({
           distanceKm: activeRoute.distanceKm,
@@ -190,7 +259,15 @@ export function useLiveJourney(
 
       const lat = p1[0] + (p2[0] - p1[0]) * factor;
       const lng = p1[1] + (p2[1] - p1[1]) * factor;
-      setCurrentCoords([lat, lng]);
+      const currentPoint: Coordinates = [lat, lng];
+
+      setCurrentCoords(currentPoint);
+      currentCoordsRef.current = currentPoint;
+
+      // Update traveled trail
+      const traveled = coords.slice(0, lowerIndex + 1);
+      traveled.push(currentPoint);
+      traveledCoordsRef.current = traveled;
 
       if (lowerIndex !== upperIndex) {
         const nextBearing = calculateBearing(p1, p2);
@@ -246,7 +323,7 @@ export function useLiveJourney(
         }
       });
 
-      // Hazards
+      // Hazards Ahead Alert
       activeRoute.hazards.forEach(hazard => {
         const distDiffKm = hazard.distanceAlongRouteKm - currentDistKm;
         const distDiffM = Math.round(distDiffKm * 1000);
@@ -274,21 +351,9 @@ export function useLiveJourney(
         }
       });
 
-      // Dynamic Rerouting Demo
-      if (nextProgress >= 0.44 && nextProgress <= 0.60 && !rerouteTriggeredRef.current) {
-        rerouteTriggeredRef.current = true;
-        const alternative = allRoutes.find(r => r.id !== activeRoute.id);
-        if (alternative) {
-          if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([80, 40, 80]);
-          setDynamicReroute({
-            newRouteId: alternative.id,
-            title: 'Hazard Congestion Detected Ahead',
-            reason: 'Cluster of rough road segments detected ahead. Saarathi recommends switching.',
-            timeDiffMin: 2,
-            costDiffRs: Math.max(15, Math.round(activeRoute.totalCost - alternative.totalCost)),
-            hazardDiff: 2
-          });
-        }
+      // In-flight Hazard Detection Simulation (between 44% and 56% progress)
+      if (nextProgress >= 0.44 && nextProgress <= 0.56 && !rerouteTriggeredRef.current) {
+        triggerLiveReroute('Pothole & Road Shock Cluster');
       }
 
       animFrameRef.current = requestAnimationFrame(animate);
@@ -301,38 +366,58 @@ export function useLiveJourney(
         cancelAnimationFrame(animFrameRef.current);
       }
     };
-  }, [isPlaying, playbackSpeed, activeRoute, allRoutes, vehicle.type, roadShockCount]);
+  }, [isPlaying, playbackSpeed, activeRoute, vehicle.type, roadShockCount, triggerLiveReroute]);
 
+  // Accept dynamic reroute from current position
   const acceptReroute = useCallback(() => {
-    if (!dynamicReroute) return;
-    const targetRouteId = dynamicReroute.newRouteId;
+    if (!dynamicReroute || !activeRoute) return;
+    const { stitchedAlternativeRoute, degradedCurrentRoute, splitIndex } = dynamicReroute;
+
+    // Set rerouting flag so activeRoute change does NOT reset progress to 0
+    isReroutingRef.current = true;
+
+    // Calculate progress fraction at current position on the new stitched route
+    const totalPoints = stitchedAlternativeRoute.coordinates.length;
+    const newProgress = totalPoints > 1 ? splitIndex / (totalPoints - 1) : 0;
+
+    progressRef.current = newProgress;
+    setProgress(newProgress);
+
+    const curr = stitchedAlternativeRoute.coordinates[splitIndex] || currentCoordsRef.current;
+    if (curr) {
+      setCurrentCoords(curr);
+      currentCoordsRef.current = curr;
+    }
+
     setDynamicReroute(null);
+
     setActiveAlert({
       id: 'reroute-success',
       type: 'rough_road',
-      title: 'Rerouted to Saarathi Optimal Path',
-      message: 'Route updated. Bypassing road hazards and tolls.',
+      title: 'Rerouted From Current Location',
+      message: 'Bypassing hazard ahead. Navigation continuing toward destination.',
       distanceAheadMeters: 0,
-      icon: '🔄',
+      icon: '✅',
       accentColor: 'emerald'
     });
-    setTimeout(() => setActiveAlert(null), 3000);
-    onSwitchRoute(targetRouteId);
-  }, [dynamicReroute, onSwitchRoute]);
+    setTimeout(() => setActiveAlert(null), 3500);
+
+    onApplyReroute(stitchedAlternativeRoute, [stitchedAlternativeRoute, degradedCurrentRoute]);
+  }, [dynamicReroute, activeRoute, onApplyReroute]);
 
   const dismissReroute = useCallback(() => {
     setDynamicReroute(null);
   }, []);
 
   const simulateOffRoute = useCallback(() => {
-    if (!isPlaying || !currentCoords) return;
+    if (!isPlaying || !currentCoordsRef.current || !activeRoute) return;
     setIsOffRoute(true);
     setIsRecalculating(true);
     setActiveAlert({
       id: 'off-route-alert',
       type: 'hazard',
       title: 'Off-Route Detected',
-      message: 'Vehicle deviated from plan. Saarathi recalculating best corridor...',
+      message: 'Vehicle deviated from plan. Recalculating from current position...',
       distanceAheadMeters: 0,
       icon: '⚠️',
       accentColor: 'rose'
@@ -341,34 +426,18 @@ export function useLiveJourney(
     setTimeout(() => {
       setIsRecalculating(false);
       setIsOffRoute(false);
-      setActiveAlert({
-        id: 'recalculated-alert',
-        type: 'rough_road',
-        title: 'Route Recalculated',
-        message: 'Reconnected with optimal path. Continuing navigation.',
-        distanceAheadMeters: 0,
-        icon: '✅',
-        accentColor: 'emerald'
-      });
-      setTimeout(() => setActiveAlert(null), 2500);
-    }, 2000);
-  }, [isPlaying, currentCoords]);
+      triggerLiveReroute('Route Deviation / Off-Route Corridor');
+    }, 1500);
+  }, [isPlaying, activeRoute, triggerLiveReroute]);
 
-  // Simulate Road Shock manually (for desktop demo testing)
+  // Simulate Road Shock manually (desktop / demo trigger)
   const simulateRoadShock = useCallback(() => {
     setRoadShockCount(prev => prev + 1);
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(100);
-    setActiveAlert({
-      id: `shock-sim-${Date.now()}`,
-      type: 'shock',
-      title: 'Road Shock Detected',
-      message: 'Phone accelerometer recorded a sudden vertical bump (+1.6G).',
-      distanceAheadMeters: 0,
-      icon: '📉',
-      accentColor: 'amber'
-    });
-    setTimeout(() => setActiveAlert(null), 3500);
-  }, []);
+
+    // Trigger hazard recalculation from current position
+    triggerLiveReroute('Severe Road Shock (+1.6G)');
+  }, [triggerLiveReroute]);
 
   const togglePlay = useCallback(() => {
     setIsPlaying(prev => !prev);
@@ -380,6 +449,7 @@ export function useLiveJourney(
     progressRef.current = 0;
     triggeredEventsRef.current = new Set();
     rerouteTriggeredRef.current = false;
+    isReroutingRef.current = false;
     setActiveAlert(null);
     setDynamicReroute(null);
     setIsOffRoute(false);
@@ -387,6 +457,8 @@ export function useLiveJourney(
     setRoadShockCount(0);
     if (activeRoute && activeRoute.coordinates.length > 0) {
       setCurrentCoords(activeRoute.coordinates[0]);
+      currentCoordsRef.current = activeRoute.coordinates[0];
+      traveledCoordsRef.current = [activeRoute.coordinates[0]];
       if (activeRoute.coordinates.length > 1) {
         setBearing(calculateBearing(activeRoute.coordinates[0], activeRoute.coordinates[1]));
       }

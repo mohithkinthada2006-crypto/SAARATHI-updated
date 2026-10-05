@@ -88,8 +88,8 @@ export function App() {
     return getWeatherForLocation(currentPreset.cityName);
   }, [currentPreset.cityName]);
 
-  // Generate candidate routes dynamically
-  const candidateRoutes = useMemo(() => {
+  // Generate candidate routes dynamically for initial planning
+  const baseRoutes = useMemo(() => {
     return generateCandidateRoutes(
       originCoords,
       destCoords,
@@ -100,22 +100,29 @@ export function App() {
     );
   }, [originCoords, destCoords, activeVehicle, journeyMode, currentPreset]);
 
+  // Dynamic active routes state (updated seamlessly on in-journey live reroute)
+  const [routes, setRoutes] = useState<Route[]>(baseRoutes);
+
+  useEffect(() => {
+    setRoutes(baseRoutes);
+  }, [baseRoutes]);
+
   // Selected route ID
   const [selectedRouteId, setSelectedRouteId] = useState<string>('route-b');
 
   // Ensure selected route is valid
   useEffect(() => {
-    if (candidateRoutes.length > 0) {
-      const exists = candidateRoutes.some(r => r.id === selectedRouteId);
+    if (routes.length > 0) {
+      const exists = routes.some(r => r.id === selectedRouteId);
       if (!exists) {
-        setSelectedRouteId(candidateRoutes[0].id);
+        setSelectedRouteId(routes[0].id);
       }
     }
-  }, [candidateRoutes, selectedRouteId]);
+  }, [routes, selectedRouteId]);
 
   const activeRoute = useMemo(() => {
-    return candidateRoutes.find(r => r.id === selectedRouteId) || candidateRoutes[0] || null;
-  }, [candidateRoutes, selectedRouteId]);
+    return routes.find(r => r.id === selectedRouteId) || routes[0] || null;
+  }, [routes, selectedRouteId]);
 
   // Callback when journey simulation finishes
   const handleJourneyCompleted = useCallback((stats: any) => {
@@ -123,12 +130,19 @@ export function App() {
     setIsTripSummaryOpen(true);
   }, []);
 
+  // Callback when live in-journey dynamic reroute is accepted
+  const handleApplyReroute = useCallback((newRoute: Route, updatedRoutes: Route[]) => {
+    setRoutes(updatedRoutes);
+    setSelectedRouteId(newRoute.id);
+  }, []);
+
   // Live Journey Hook
   const liveJourney = useLiveJourney(
     activeRoute,
     activeVehicle,
-    candidateRoutes,
-    (newRouteId) => setSelectedRouteId(newRouteId),
+    destCoords,
+    destName,
+    handleApplyReroute,
     handleJourneyCompleted
   );
 
@@ -255,7 +269,7 @@ export function App() {
           destination={destCoords}
           originName={originName}
           destinationName={destName}
-          routes={candidateRoutes}
+          routes={routes}
           selectedRouteId={selectedRouteId}
           vehicle={activeVehicle}
           isLiveJourney={activeTab === 'live'}
@@ -278,7 +292,7 @@ export function App() {
             <DestinationCard
               originName={originName}
               destinationName={destName}
-              routes={candidateRoutes}
+              routes={routes}
               selectedRoute={activeRoute}
               vehicle={activeVehicle}
               onPlanJourney={() => {}}
@@ -306,7 +320,7 @@ export function App() {
             {/* Evaluated Routes Header */}
             <div className="flex items-center justify-between px-1 pt-0.5">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                Evaluated Routes ({candidateRoutes.length})
+                Evaluated Routes ({routes.length})
               </span>
 
               <button
@@ -320,7 +334,7 @@ export function App() {
 
             {/* Candidate Route Cards */}
             <div className="space-y-2 pb-4">
-              {candidateRoutes.map((route) => (
+              {routes.map((route) => (
                 <RouteCard
                   key={route.id}
                   route={route}
@@ -404,7 +418,7 @@ export function App() {
       <RouteComparisonModal
         isOpen={isComparisonOpen}
         onClose={() => setIsComparisonOpen(false)}
-        routes={candidateRoutes}
+        routes={routes}
         selectedRouteId={selectedRouteId}
         onSelectRoute={(id) => setSelectedRouteId(id)}
         onStartJourney={handleStartJourney}
